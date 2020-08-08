@@ -10,7 +10,7 @@ Il faut :
 - avoir une adresse IPv4 fixe
 - avoir un accès root ou un utilisateur avec privilège sudo
 
-## Mode d'emploi
+## Utilisation
 Voir le mode d'emploi sur le wiki :
 [wgconf : script de configuration du serveur et de gestion des clients Wireguard](https://github.com/mikmer62/wgconf/wiki/wgconf-:-script-de-configuration-du-serveur-et-de-gestion-des-clients-Wireguard)
 
