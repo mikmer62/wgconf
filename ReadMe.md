@@ -6,7 +6,7 @@ Ce script bash a pour objet de configurer et de gérer les clients Wireguard sur
 ## Pré-requis
 Il faut :
 - disposer d'un petit serveur Linux et d'un accès fibre optique : c'est indispensable pour avoir un débit correct.
-- avoir un accès root (de préférence) ou au minimun un accès utilisateur permettant d'émettre des commandes sudo
+- avoir un accès root
 - avoir une adresse IPv4 fixe
 - avoir un accès root ou un utilisateur avec privilège sudo
 
