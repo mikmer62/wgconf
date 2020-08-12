@@ -143,6 +143,12 @@ case $1 in
       echo "" >> $WG_DIR/$WG_FILECONF
       echo "" >> $WG_DIR/$WG_FILECONF
     fi
+
+    ##### Redirection des IPv4 pour pouvoir atteindre le tunnel Wireguard
+
+    sed -i -r -e 's/#{1,}?net.ipv4.ip_forward ?= ?(0|1)/net.ipv4.ip_forward = 1/g' /etc/sysctl.conf
+    sysctl -p > /dev/null
+
     ;;
 
   ##### Ajout d'un client
