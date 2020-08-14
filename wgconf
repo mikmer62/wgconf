@@ -427,11 +427,9 @@ case $1 in
     if [ $# -eq 1 ]
     then
       wget -O $WG_DIR/newwgconfmikmer62 https://raw.githubusercontent.com/mikmer62/wgconf/master/wgconf >/dev/null 2>&1
-      WG_NEWMAJORRELEASE=`grep -e '##### Version ' $WG_DIR/wgconf | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\1/p"`
-      WG_NEWMINORRELEASE=`grep -e '##### Version ' $WG_DIR/wgconf | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\2/p"`
+      WG_NEWMAJORRELEASE=`grep -e '##### Version ' $WG_DIR/newwgconfmikmer62 | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\1/p"`
+      WG_NEWMINORRELEASE=`grep -e '##### Version ' $WG_DIR/newwgconfmikmer62 | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\2/p"`
 
-      let WG_NEWMAJORRELEASE=2
-      let WG_NEWMINORRELEASE=0
       if [ $WG_NEWMAJORRELEASE -gt $WG_CURMAJORRELEASE ] || [ $WG_NEWMINORRELEASE -gt $WG_CURMINORRELEASE ]
       then
         chmod +x $WG_DIR/newwgconfmikmer62
