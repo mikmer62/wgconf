@@ -3,7 +3,7 @@
 ##### wgconf : gest serveur et clients wireguard
 ##### https://github.com/mikmer62/wgconf
 
-##### Version 1.2
+##### Version 1.3
 
 #####
 ##### Lecture / écriture des paramètres
@@ -38,6 +38,10 @@ function wggetparams () {
 
   # Racine IP du VPN (XXX.XXX.XXX.)
   WG_IPROOT=`sed -rn "s/([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.).*/\\1/p" <<< $WG_INTERNALVPNIP`
+
+  # Version du script pour maj éventuelle
+  WG_CURMAJORRELEASE=`grep -e '##### Version ' $WG_DIR/wgconf | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\1/p"`
+  WG_CURMINORRELEASE=`grep -e '##### Version ' $WG_DIR/wgconf | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\2/p"`
 }
 
 function wgsetparams () {
@@ -334,8 +338,8 @@ case $1 in
 
   ##### Envoi des fichiers de configuration par mail
   sendconf)
-    MUTTINST=`which mutt`
-    if [ -z $MUTTINST ]
+    WG_MUTTINST=`which mutt`
+    if [ -z $WG_MUTTINST ]
     then
       echo -e "\nImpossible d'envoyer des mails : le package mutt n'est pas installé !\n"
       exit
@@ -411,7 +415,39 @@ case $1 in
     fi
     ;;
 
+  ##### Mise à jour dernière version du script
+  autoupdate)
+    WG_WGETINST=`which wget`
+    if [ -z $WG_WGETINST ]
+    then
+      echo -e "\nImpossible de faire la mise à jour : le package wget n'est pas installé !\n"
+      exit
+    fi
+
+    if [ $# -eq 1 ]
+    then
+      wget -O $WG_DIR/newwgconfmikmer62 https://raw.githubusercontent.com/mikmer62/wgconf/master/wgconf >/dev/null 2>&1
+      WG_NEWMAJORRELEASE=`grep -e '##### Version ' $WG_DIR/wgconf | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\1/p"`
+      WG_NEWMINORRELEASE=`grep -e '##### Version ' $WG_DIR/wgconf | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\2/p"`
+
+      let WG_NEWMAJORRELEASE=2
+      let WG_NEWMINORRELEASE=0
+      if [ $WG_NEWMAJORRELEASE -gt $WG_CURMAJORRELEASE ] || [ $WG_NEWMINORRELEASE -gt $WG_CURMINORRELEASE ]
+      then
+        chmod +x $WG_DIR/newwgconfmikmer62
+        mv $WG_DIR/newwgconfmikmer62 $WG_DIR/wgconf
+        echo "Mise à jour en version "$WG_NEWMAJORRELEASE"."$WG_NEWMINORRELEASE "effectuée !"
+      else
+        echo "Vous disposez déjà de la dernière version de wgconf !"
+      rm $WG_DIR/newwgconfmikmer62
+      fi
+    else
+      echo "Nombre de paramètres incorrect !"
+    fi
+    ;;
+
   ?)
+    echo "wgconf version "$WG_CURMAJORRELEASE"."$WG_CURMINORRELEASE
     echo "USAGE"
     echo "    wgconf <option> [<byip>] [nom_du_client] [email]"
     echo "    Le nom du client  ne doit pas contenir d'espace"
@@ -428,6 +464,7 @@ case $1 in
     echo "    stop                          : Arrête le serveur VPN Wireguard"
     echo "    restart                       : Redémarre le serveur VPN Wireguard"
     echo "    raz                           : Supprime tous les clients et la configuration"
+    echo "    autoupdate                    : Mise à jour automatique du script"
     echo ""
     ;;
 
