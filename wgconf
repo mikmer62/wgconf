@@ -3,7 +3,7 @@
 ##### wgconf : gest serveur et clients wireguard
 ##### https://github.com/mikmer62/wgconf
 
-##### Version 1.1
+##### Version 1.2
 
 #####
 ##### Lecture / écriture des paramètres
@@ -15,6 +15,7 @@ function wggetparams () {
   WG_DIRCONF=$WG_DIR/conf
   WG_DIRQRCODE=$WG_DIR/qrcode
   WG_PARAMS=$WG_DIR/wgconf.params
+  WG_FILECONF=$WG_DIR/wg0.conf
 
   if [ ! -e $WG_PARAMS ]
   then
@@ -25,7 +26,6 @@ function wggetparams () {
     WG_DNS=176.103.130.130,176.103.130.131
     WG_MTU=`ip address | grep -Po $WG_ETHERNET'.*mtu [[:digit:]]*' | sed -rn "s/.*mtu ([[:digit:]])/\\1/p"`
     WG_PERSKEEPALIVE=25
-    WG_FILECONF=wg0.conf
   else
     WG_PUBLICIP=`grep 'WG_PUBLICIP=' $WG_DIR'/wgconf.params' | sed -rn 's/WG_PUBLICIP=(.*)/\\1/p'`
     WG_INTERNALVPNIP=`grep 'WG_INTERNALVPNIP=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_INTERNALVPNIP=(.*)/\\1/p"`
@@ -34,8 +34,10 @@ function wggetparams () {
     WG_DNS=`grep 'WG_DNS=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_DNS=(.*)/\\1/p"`
     WG_MTU=`grep 'WG_MTU=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_MTU=(.*)/\\1/p"`
     WG_PERSKEEPALIVE=`grep 'WG_PERSKEEPALIVE=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_PERSKEEPALIVE=(.*)/\\1/p"`
-    WG_FILECONF=`grep 'WG_FILECONF=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_FILECONF=(.*)/\\1/p"`
   fi
+
+  # Racine IP du VPN (XXX.XXX.XXX.)
+  WG_IPROOT=`sed -rn "s/([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.).*/\\1/p" <<< $WG_INTERNALVPNIP`
 }
 
 function wgsetparams () {
@@ -77,21 +79,28 @@ function wgsetparams () {
   echo -e "\nFichier wgconf.params créé ou modifié !\n"
 }
 
-##### Récupération des paramètres de configuration
+##### Récupération des paramètres de configuration ou par défaut
 wggetparams
 
-if [ ! -e $WG_DIR/wgconf.params ] && [ $1 != "raz" ] && [ $1 != "init" ]
+if [ ! -e $WG_PARAMS ]
 then
-  echo "Tapez 'wgconf init' pour initialiser les paramètres !"
-  exit
+  WG_OUTPUT=`wg | wc -l`
+  if [ $WG_OUTPUT -ne 0 ]
+  then
+    # Wireguard tourne déjà mais pas avec une configuration créée par wgconf
+    echo "Impossible d'utiliser wgconf avec une configuration Wireguard déjà existante !"
+#    exit
+  elif [ $1 != "raz" ] && [ $1 != "init" ]
+  then
+    # Tentative d'utilisation de wgconf sans savoir initialisé les paramètres
+    echo "Tapez 'wgconf init' pour initialiser les paramètres !"
+    exit
+  fi
 fi
 
 #####
-##### wgconf options : addcli / delcli / listcli / listkeys / showcli / showqr
+##### wgconf options : init / addcli / ...
 #####
-
-# Racine IP du VPN (XXX.XXX.XXX.)
-IPROOT=`sed -rn "s/([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.).*/\\1/p" <<< $WG_INTERNALVPNIP`
 
 case $1 in
   ##### Initialisation
@@ -99,12 +108,14 @@ case $1 in
     if [ $# -gt 1 ]
     then
       echo "Nombre de paramètres incorrect !"
-    elif [ ! -e $WG_PARAMS ]
+      exit
+    elif [ -e $WG_PARAMS ]
     then
-      wgsetparams
-    else
       echo "Les paramètres de configuration sont déjà définis !"
+      exit
     fi
+
+    wgsetparams
 
     ##### Création du fichier de configuration et des répertoires s'ils n'existent pas
 
@@ -131,19 +142,19 @@ case $1 in
       chown root:root $WG_DIRQRCODE
     fi
 
-    if [ ! -e $WG_DIR/$WG_FILECONF ]
+    if [ ! -e $WG_FILECONF ]
     then
-      echo "# Server" > $WG_DIR/$WG_FILECONF
-      echo "[Interface]" >> $WG_DIR/$WG_FILECONF
-      echo "Address = "$WG_INTERNALVPNIP"/24" >> $WG_DIR/$WG_FILECONF
-      echo "ListenPort = "$WG_LISTENPORT >> $WG_DIR/$WG_FILECONF
-      echo "# Server private key" >> $WG_DIR/$WG_FILECONF
-      echo "PrivateKey = "`cat $WG_DIRKEYS/wgserver_private_key` >> $WG_DIR/$WG_FILECONF
-      echo "PostUp = iptables -A FORWARD -i %i -j ACCEPT;  iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o "$WG_ETHERNET" -j MASQUERADE" >> $WG_DIR/$WG_FILECONF
-      echo "PostDown = iptables -D FORWARD -i %i -j ACCEPT;  iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o "$WG_ETHERNET" -j MASQUERADE" >> $WG_DIR/$WG_FILECONF
-      echo "MTU = "$WG_MTU >> $WG_DIR/$WG_FILECONF
-      echo "" >> $WG_DIR/$WG_FILECONF
-      echo "" >> $WG_DIR/$WG_FILECONF
+      echo "# Server" > $WG_FILECONF
+      echo "[Interface]" >> $WG_FILECONF
+      echo "Address = "$WG_INTERNALVPNIP"/24" >> $WG_FILECONF
+      echo "ListenPort = "$WG_LISTENPORT >> $WG_FILECONF
+      echo "# Server private key" >> $WG_FILECONF
+      echo "PrivateKey = "`cat $WG_DIRKEYS/wgserver_private_key` >> $WG_FILECONF
+      echo "PostUp = iptables -A FORWARD -i %i -j ACCEPT;  iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o "$WG_ETHERNET" -j MASQUERADE" >> $WG_FILECONF
+      echo "PostDown = iptables -D FORWARD -i %i -j ACCEPT;  iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o "$WG_ETHERNET" -j MASQUERADE" >> $WG_FILECONF
+      echo "MTU = "$WG_MTU >> $WG_FILECONF
+      echo "" >> $WG_FILECONF
+      echo "" >> $WG_FILECONF
     fi
 
     ##### Redirection des IPv4 pour pouvoir atteindre le tunnel Wireguard
@@ -158,65 +169,66 @@ case $1 in
     if [ $# -ne 2 ]
     then
       echo "Nom client manquant ou incorrect (le nom du client ne doit pas contenir d'espace) !"
-    else
-      if [ ! -e $WG_DIRCONF/$2.conf ]
-      then
-        # recherche de la 1ère IP libre
-        NEXTIP=1
-        NEXTIPOK=false
-        while [ $NEXTIPOK == false -a $NEXTIP -lt 255 ]
-        do
-          let NEXTIP=$NEXTIP+1
-          IPEXIST=`cat $WG_DIR/$WG_FILECONF | grep $IPROOT$NEXTIP"\/"`
-          if [ "$IPEXIST" == "" ]
-          then
-            NEXTIPOK=true
-          fi
-        done
-        if [ $NEXTIPOK == true ]
+      exit
+    fi
+
+    if [ ! -e $WG_DIRCONF/$2.conf ]
+    then
+      # recherche de la 1ère IP libre
+      WG_NEXTIP=1
+      WG_NEXTIPOK=false
+      while [ $WG_NEXTIPOK == false -a $WG_NEXTIP -lt 255 ]
+      do
+        let WG_NEXTIP=$WG_NEXTIP+1
+        WG_IPEXIST=`cat $WG_FILECONF | grep $WG_IPROOT$WG_NEXTIP"\/"`
+        if [ "$WG_IPEXIST" == "" ]
         then
-          # création clés client
-          wg genkey | tee $WG_DIRKEYS/$2_private_key | wg pubkey > $WG_DIRKEYS/$2_public_key
-
-          # création fichier configuration client
-          echo "# Client "$2 > $WG_DIRCONF/$2.conf
-          echo "[Interface]" >>  $WG_DIRCONF/$2.conf
-          echo "# "$2" Private key peer" >>  $WG_DIRCONF/$2.conf
-          echo "PrivateKey = `cat "$WG_DIR"/keys/"$2"_private_key`" >>  $WG_DIRCONF/$2.conf
-          echo "Address = "$IPROOT$NEXTIP"/24" >>  $WG_DIRCONF/$2.conf
-          echo "DNS = "$WG_DNS >>  $WG_DIRCONF/$2.conf
-          echo "" >>  $WG_DIRCONF/$2.conf
-          echo "[Peer]" >>  $WG_DIRCONF/$2.conf
-          echo "# Server public key" >>  $WG_DIRCONF/$2.conf
-          echo "PublicKey =  `cat $WG_DIRKEYS/wgserver_public_key`" >>  $WG_DIRCONF/$2.conf
-          echo "Endpoint = "$WG_PUBLICIP":"$WG_LISTENPORT >>  $WG_DIRCONF/$2.conf
-          echo "AllowedIPs = 0.0.0.0/0" >>  $WG_DIRCONF/$2.conf
-          echo "PersistentKeepalive = "$WG_PERSKEEPALIVE >>  $WG_DIRCONF/$2.conf
-
-          # Ajout client dans la configuration serveur
-          echo "# Client "$2 >> $WG_DIR/$WG_FILECONF
-          echo "[Peer]" >> $WG_DIR/$WG_FILECONF
-          echo "# "$2" public key" >> $WG_DIR/$WG_FILECONF
-          echo "PublicKey = "`cat $WG_DIRKEYS/$2_public_key` >> $WG_DIR/$WG_FILECONF
-          echo "AllowedIPs = "$IPROOT$NEXTIP"/32" >> $WG_DIR/$WG_FILECONF
-          echo "" >> $WG_DIR/$WG_FILECONF
-
-          # Redémarrage serveur
-          wg-quick down $WG_DIR/$WG_FILECONF >/dev/null 2>&1
-          wg-quick up $WG_DIR/$WG_FILECONF >/dev/null 2>&1
-
-          echo -e "\nAjout client "$2" réussi (IP="$IPROOT$NEXTIP") !\n"
-
-          # Création et affichage qrcode
-          qrencode -o $WG_DIRQRCODE/$2.jpg < $WG_DIRCONF/$2.conf
-          qrencode -t ansiutf8 < $WG_DIRCONF/$2.conf
-          echo ""
-        else
-          echo "Plus d'adresse IP disponible !"
+          WG_NEXTIPOK=true
         fi
+      done
+      if [ $WG_NEXTIPOK == true ]
+      then
+        # création clés client
+        wg genkey | tee $WG_DIRKEYS/$2_private_key | wg pubkey > $WG_DIRKEYS/$2_public_key
+
+        # création fichier configuration client
+        echo "# Client "$2 > $WG_DIRCONF/$2.conf
+        echo "[Interface]" >>  $WG_DIRCONF/$2.conf
+        echo "# "$2" Private key peer" >>  $WG_DIRCONF/$2.conf
+        echo "PrivateKey = `cat "$WG_DIR"/keys/"$2"_private_key`" >>  $WG_DIRCONF/$2.conf
+        echo "Address = "$WG_IPROOT$WG_NEXTIP"/24" >>  $WG_DIRCONF/$2.conf
+        echo "DNS = "$WG_DNS >>  $WG_DIRCONF/$2.conf
+        echo "" >>  $WG_DIRCONF/$2.conf
+        echo "[Peer]" >>  $WG_DIRCONF/$2.conf
+        echo "# Server public key" >>  $WG_DIRCONF/$2.conf
+        echo "PublicKey =  `cat $WG_DIRKEYS/wgserver_public_key`" >>  $WG_DIRCONF/$2.conf
+        echo "Endpoint = "$WG_PUBLICIP":"$WG_LISTENPORT >>  $WG_DIRCONF/$2.conf
+        echo "AllowedIPs = 0.0.0.0/0" >>  $WG_DIRCONF/$2.conf
+        echo "PersistentKeepalive = "$WG_PERSKEEPALIVE >>  $WG_DIRCONF/$2.conf
+
+        # Ajout client dans la configuration serveur
+        echo "# Client "$2 >> $WG_FILECONF
+        echo "[Peer]" >> $WG_FILECONF
+        echo "# "$2" public key" >> $WG_FILECONF
+        echo "PublicKey = "`cat $WG_DIRKEYS/$2_public_key` >> $WG_FILECONF
+        echo "AllowedIPs = "$WG_IPROOT$WG_NEXTIP"/32" >> $WG_FILECONF
+        echo "" >> $WG_FILECONF
+
+        # Redémarrage serveur
+        wg-quick down $WG_FILECONF >/dev/null 2>&1
+        wg-quick up $WG_FILECONF >/dev/null 2>&1
+
+        echo -e "\nAjout client "$2" réussi (IP="$WG_IPROOT$WG_NEXTIP") !\n"
+
+        # Création et affichage qrcode
+        qrencode -o $WG_DIRQRCODE/$2.jpg < $WG_DIRCONF/$2.conf
+        qrencode -t ansiutf8 < $WG_DIRCONF/$2.conf
+        echo ""
       else
-        echo "Ce client existe déjà !"
+        echo "Plus d'adresse IP disponible !"
       fi
+    else
+      echo "Ce client existe déjà !"
     fi
     ;;
 
@@ -225,34 +237,35 @@ case $1 in
     if [ $# -ne 2 ]
     then
       echo "Nom client manquant ou incorrect (le nom du client ne doit pas contenir d'espace) !"
-    else
-      if [ -e $WG_DIRCONF"/"$2.conf ]
+      exit
+    fi
+
+    if [ -e $WG_DIRCONF"/"$2.conf ]
+    then
+      while [ -z $CONFIRM ] || ( [ $CONFIRM != "O" ] && [ $CONFIRM != "N" ] )
+      do
+        read -rp "Voulez-vous vraiment supprimer le client "$2" (O/N) ? " -e CONFIRM
+        CONFIRM=`echo $CONFIRM | tr '[a-z]' '[A-Z]'`
+      done
+      if [ $CONFIRM == "O" ]
       then
-        while [ -z $CONFIRM ] || ( [ $CONFIRM != "O" ] && [ $CONFIRM != "N" ] )
-        do
-          read -rp "Voulez-vous vraiment supprimer le client "$2" (O/N) ? " -e CONFIRM
-          CONFIRM=`echo $CONFIRM | tr '[a-z]' '[A-Z]'`
-        done
-        if [ $CONFIRM == "O" ]
-        then
-          FIRSTLINETODEL=`grep -n "# Client "$2"$" wg0.conf | sed -rn "s/([[:digit:]]*):.*/\\1/p"`
-          let LASTLINETODEL=$FIRSTLINETODEL+5
-          sed -i """"$FIRSTLINETODEL","$LASTLINETODEL"d" wg0.conf
-          rm $WG_DIRKEYS/$2_private_key
-          rm $WG_DIRKEYS/$2_public_key
-          rm $WG_DIRCONF/$2.conf
-          rm $WG_DIRQRCODE/$2.jpg
+        WG_FIRSTLINETODEL=`grep -n "# Client "$2"$" wg0.conf | sed -rn "s/([[:digit:]]*):.*/\\1/p"`
+        let WG_LASTLINETODEL=$WG_FIRSTLINETODEL+5
+        sed -i """"$WG_FIRSTLINETODEL","$WG_LASTLINETODEL"d" wg0.conf
+        rm $WG_DIRKEYS/$2_private_key
+        rm $WG_DIRKEYS/$2_public_key
+        rm $WG_DIRCONF/$2.conf
+        rm $WG_DIRQRCODE/$2.jpg
 
-          wg-quick down $WG_DIR/$WG_FILECONF >/dev/null 2>&1
-          wg-quick up $WG_DIR/$WG_FILECONF >/dev/null 2>&1
+        wg-quick down $WG_FILECONF >/dev/null 2>&1
+        wg-quick up $WG_FILECONF >/dev/null 2>&1
 
-          echo -e "\nSuppression client "$2" réussie !\n"
-        else
-          echo -e "\nSuppression annulée !\n"
-        fi
+        echo -e "\nSuppression client "$2" réussie !\n"
       else
-        echo "Ce client n'existe pas !"
+        echo -e "\nSuppression annulée !\n"
       fi
+    else
+      echo "Ce client n'existe pas !"
     fi
     ;;
 
@@ -260,12 +273,12 @@ case $1 in
   listcli)
     if [ $# -eq 1 ]
     then
-      grep -E '# Client'\|'Allowed' $WG_DIR/$WG_FILECONF | sed -rn "N;s/# Client (.*)\n.* = ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}).*/\\1,\\2/p"
+      grep -E '# Client'\|'Allowed' $WG_FILECONF | sed -rn "N;s/# Client (.*)\n.* = ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}).*/\\1,\\2/p"
     elif [ $# -eq 2 ]
     then
       if [ $2 == "byip" ]
       then
-        grep -E '# Client'\|'Allowed' $WG_DIR/$WG_FILECONF | sed -rn "N;s/# Client (.*)\n.* = ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}).*/\\1,\\2/p" | sort -t. -k 4 -n
+        grep -E '# Client'\|'Allowed' $WG_FILECONF | sed -rn "N;s/# Client (.*)\n.* = ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}).*/\\1,\\2/p" | sort -t. -k 4 -n
       else
         echo "Paramètre erroné !"
       fi
@@ -289,25 +302,23 @@ case $1 in
 
   ##### Affichage d'un fichier de configuration client
   showcli)
-    if [ $# -ne 2 ]
+    if [ $# -eq 2 ]
     then
-      echo "Nom client manquant ou incorrect (le nom du client ne doit pas contenir d'espace) !"
-    else
       if [ -e $WG_DIRCONF"/"$2.conf ]
       then
         cat $WG_DIRCONF"/"$2.conf
       else
         echo "Ce client n'existe pas !"
       fi
+    else
+      echo "Nom client manquant ou incorrect (le nom du client ne doit pas contenir d'espace) !"
     fi
     ;;
 
   ##### Affichage d'un qrcode client
   showqrcode)
-    if [ $# -ne 2 ]
+    if [ $# -eq 2 ]
     then
-      echo "Nom client manquant ou incorrect (le nom du client ne doit pas contenir d'espace) !"
-    else
       if [ -e $WG_DIRCONF"/"$2.conf ]
       then
         echo ""
@@ -316,6 +327,8 @@ case $1 in
       else
         echo "Ce client n'existe pas !"
       fi
+    else
+      echo "Nom client manquant ou incorrect (le nom du client ne doit pas contenir d'espace) !"
     fi
     ;;
 
@@ -327,10 +340,9 @@ case $1 in
       echo -e "\nImpossible d'envoyer des mails : le package mutt n'est pas installé !\n"
       exit
     fi
-    if [ $# -ne 3 ]
+
+    if [ $# -eq 3 ]
     then
-      echo "Nom client/email manquants ou incorrects (le nom du client ne doit pas contenir d'espace) !"
-    else
       if [ -e $WG_DIRCONF"/"$2.conf ]
       then
         if [[ $3 =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]+$ ]]
@@ -343,6 +355,19 @@ case $1 in
       else
         echo "Ce client n'existe pas !"
       fi
+    else
+      echo "Nombre de paramètres incorrect !"
+    fi
+    ;;
+
+  ##### Arrêt VPN
+  stop)
+    if [ $# -eq 1 ]
+    then
+      wg-quick down $WG_FILECONF
+      wg show
+    else
+      echo "Nombre de paramètres incorrect !"
     fi
     ;;
 
@@ -350,8 +375,8 @@ case $1 in
   restart)
     if [ $# -eq 1 ]
     then
-      wg-quick down $WG_DIR/$WG_FILECONF
-      wg-quick up $WG_DIR/$WG_FILECONF
+      wg-quick down $WG_FILECONF
+      wg-quick up $WG_FILECONF
       wg show
     else
       echo "Nombre de paramètres incorrect !"
@@ -369,7 +394,7 @@ case $1 in
       done
       if [ $CONFIRM == "O" ]
       then
-        wg-quick down $WG_DIR/$WG_FILECONF > /dev/null 2>&1
+        wg-quick down $WG_FILECONF > /dev/null 2>&1
 
         rm -R $WG_DIRCONF > /dev/null 2>&1
         rm -R $WG_DIRKEYS > /dev/null 2>&1
@@ -400,6 +425,7 @@ case $1 in
     echo "    showcli nom_du_client         : Affiche le fichier de configuration du client"
     echo "    showqrcode nom_du_client      : Affiche le qrcode du client"
     echo "    sendconf nom_du_client email  : Envoie les fichier de configuration à l'adresse email"
+    echo "    stop                          : Arrête le serveur VPN Wireguard"
     echo "    restart                       : Redémarre le serveur VPN Wireguard"
     echo "    raz                           : Supprime tous les clients et la configuration"
     echo ""
