@@ -2,6 +2,11 @@
 
 Ce script bash a pour objet de configurer et de gérer les clients Wireguard sur un serveur Linux.
 
+Voir les articles correspondants sur https://www.mikmer.fr :
+
+[Installer Wireguard sur un Raspberry sous Raspbian](https://www.mikmer.fr/?p=148)
+
+[Installer Wireguard sur un serveur Linux](https://www.mikmer.fr/?p=95#paqcomp)
 
 ## Pré-requis
 Il faut :
