@@ -3,7 +3,7 @@
 ##### wgconf : gest serveur et clients wireguard
 ##### https://github.com/mikmer62/wgconf
 
-##### Version 1.3
+##### Version 1.4
 
 #####
 ##### Lecture / écriture des paramètres
@@ -37,11 +37,11 @@ function wggetparams () {
   fi
 
   # Racine IP du VPN (XXX.XXX.XXX.)
-  WG_IPROOT=`sed -rn "s/([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.).*/\\1/p" <<< $WG_INTERNALVPNIP`
+  IPROOT=`sed -rn "s/([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.).*/\\1/p" <<< $WG_INTERNALVPNIP`
 
   # Version du script pour maj éventuelle
-  WG_CURMAJORRELEASE=`grep -e '##### Version ' $WG_DIR/wgconf | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\1/p"`
-  WG_CURMINORRELEASE=`grep -e '##### Version ' $WG_DIR/wgconf | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\2/p"`
+  CURMAJORRELEASE=`grep -e '##### Version ' $WG_DIR/wgconf | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\1/p"`
+  CURMINORRELEASE=`grep -e '##### Version ' $WG_DIR/wgconf | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\2/p"`
 }
 
 function wgsetparams () {
@@ -88,8 +88,8 @@ wggetparams
 
 if [ ! -e $WG_PARAMS ]
 then
-  WG_OUTPUT=`wg | wc -l`
-  if [ $WG_OUTPUT -ne 0 ]
+  WGRUNNING=`wg | wc -l`
+  if [ $WGRUNNING -ne 0 ]
   then
     # Wireguard tourne déjà mais pas avec une configuration créée par wgconf
     echo "Impossible d'utiliser wgconf avec une configuration Wireguard déjà existante !"
@@ -165,7 +165,6 @@ case $1 in
 
     sed -i -r -e 's/#{1,}?net.ipv4.ip_forward ?= ?(0|1)/net.ipv4.ip_forward = 1/g' /etc/sysctl.conf
     sysctl -p > /dev/null
-
     ;;
 
   ##### Ajout d'un client
@@ -179,18 +178,18 @@ case $1 in
     if [ ! -e $WG_DIRCONF/$2.conf ]
     then
       # recherche de la 1ère IP libre
-      WG_NEXTIP=1
-      WG_NEXTIPOK=false
-      while [ $WG_NEXTIPOK == false -a $WG_NEXTIP -lt 255 ]
+      NEXTIP=1
+      NEXTIPOK=false
+      while [ $NEXTIPOK == false -a $NEXTIP -lt 255 ]
       do
-        let WG_NEXTIP=$WG_NEXTIP+1
-        WG_IPEXIST=`cat $WG_FILECONF | grep $WG_IPROOT$WG_NEXTIP"\/"`
+        let NEXTIP=$NEXTIP+1
+        WG_IPEXIST=`cat $WG_FILECONF | grep $IPROOT$NEXTIP"\/"`
         if [ "$WG_IPEXIST" == "" ]
         then
-          WG_NEXTIPOK=true
+          NEXTIPOK=true
         fi
       done
-      if [ $WG_NEXTIPOK == true ]
+      if [ $NEXTIPOK == true ]
       then
         # création clés client
         wg genkey | tee $WG_DIRKEYS/$2_private_key | wg pubkey > $WG_DIRKEYS/$2_public_key
@@ -200,7 +199,7 @@ case $1 in
         echo "[Interface]" >>  $WG_DIRCONF/$2.conf
         echo "# "$2" Private key peer" >>  $WG_DIRCONF/$2.conf
         echo "PrivateKey = `cat "$WG_DIR"/keys/"$2"_private_key`" >>  $WG_DIRCONF/$2.conf
-        echo "Address = "$WG_IPROOT$WG_NEXTIP"/24" >>  $WG_DIRCONF/$2.conf
+        echo "Address = "$IPROOT$NEXTIP"/24" >>  $WG_DIRCONF/$2.conf
         echo "DNS = "$WG_DNS >>  $WG_DIRCONF/$2.conf
         echo "" >>  $WG_DIRCONF/$2.conf
         echo "[Peer]" >>  $WG_DIRCONF/$2.conf
@@ -215,14 +214,14 @@ case $1 in
         echo "[Peer]" >> $WG_FILECONF
         echo "# "$2" public key" >> $WG_FILECONF
         echo "PublicKey = "`cat $WG_DIRKEYS/$2_public_key` >> $WG_FILECONF
-        echo "AllowedIPs = "$WG_IPROOT$WG_NEXTIP"/32" >> $WG_FILECONF
+        echo "AllowedIPs = "$IPROOT$NEXTIP"/32" >> $WG_FILECONF
         echo "" >> $WG_FILECONF
 
         # Redémarrage serveur
         wg-quick down $WG_FILECONF >/dev/null 2>&1
         wg-quick up $WG_FILECONF >/dev/null 2>&1
 
-        echo -e "\nAjout client "$2" réussi (IP="$WG_IPROOT$WG_NEXTIP") !\n"
+        echo -e "\nAjout client "$2" réussi (IP="$IPROOT$NEXTIP") !\n"
 
         # Création et affichage qrcode
         qrencode -o $WG_DIRQRCODE/$2.jpg < $WG_DIRCONF/$2.conf
@@ -253,9 +252,9 @@ case $1 in
       done
       if [ $CONFIRM == "O" ]
       then
-        WG_FIRSTLINETODEL=`grep -n "# Client "$2"$" wg0.conf | sed -rn "s/([[:digit:]]*):.*/\\1/p"`
-        let WG_LASTLINETODEL=$WG_FIRSTLINETODEL+5
-        sed -i """"$WG_FIRSTLINETODEL","$WG_LASTLINETODEL"d" wg0.conf
+        FIRSTLINETODEL=`grep -n "# Client "$2"$" wg0.conf | sed -rn "s/([[:digit:]]*):.*/\\1/p"`
+        let LASTLINETODEL=$FIRSTLINETODEL+5
+        sed -i """"$FIRSTLINETODEL","$LASTLINETODEL"d" wg0.conf
         rm $WG_DIRKEYS/$2_private_key
         rm $WG_DIRKEYS/$2_public_key
         rm $WG_DIRCONF/$2.conf
@@ -338,8 +337,37 @@ case $1 in
 
   ##### Envoi des fichiers de configuration par mail
   sendconf)
-    WG_MUTTINST=`which mutt`
-    if [ -z $WG_MUTTINST ]
+    UUENVIEWINST=`which uuenview`
+    if [ -z $UUENVIEWINST ]
+    then
+      echo -e "\nImpossible d'envoyer des mails : le package uuenview n'est pas installé !\n"
+      exit
+    fi
+
+    if [ $# -eq 3 ]
+    then
+      if [ -e $WG_DIRCONF"/"$2.conf ]
+      then
+        if [[ $3 =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]+$ ]]
+        then
+          echo -e "From: mikmer@mikmer.fr\nTo: "$3"\nSubject: Configuration Wireguard\n\nFichiers de configuration et qrcode en pièces jointes ! " \
+            | uuenview -a -bo $WG_DIRCONF"/"$2.conf $WG_DIRQRCODE"/"$2.jpg | sendmail -it
+          echo -e "\nFichiers de configuration envoyés !\n"
+        else
+          echo "Adresse email incorrecte !"
+        fi
+      else
+        echo "Ce client n'existe pas !"
+      fi
+    else
+      echo "Nombre de paramètres incorrect !"
+    fi
+    ;;
+
+  ##### Envoi des fichiers de configuration par mail
+  sendconf2)
+    MUTTINST=`which mutt`
+    if [ -z $MUTTINST ]
     then
       echo -e "\nImpossible d'envoyer des mails : le package mutt n'est pas installé !\n"
       exit
@@ -417,8 +445,8 @@ case $1 in
 
   ##### Mise à jour dernière version du script
   autoupdate)
-    WG_WGETINST=`which wget`
-    if [ -z $WG_WGETINST ]
+    WGETINST=`which wget`
+    if [ -z $WGETINST ]
     then
       echo -e "\nImpossible de faire la mise à jour : le package wget n'est pas installé !\n"
       exit
@@ -427,17 +455,17 @@ case $1 in
     if [ $# -eq 1 ]
     then
       wget -O $WG_DIR/newwgconfmikmer62 https://raw.githubusercontent.com/mikmer62/wgconf/master/wgconf >/dev/null 2>&1
-      WG_NEWMAJORRELEASE=`grep -e '##### Version ' $WG_DIR/newwgconfmikmer62 | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\1/p"`
-      WG_NEWMINORRELEASE=`grep -e '##### Version ' $WG_DIR/newwgconfmikmer62 | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\2/p"`
+      NEWMAJORRELEASE=`grep -e '##### Version ' $WG_DIR/newwgconfmikmer62 | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\1/p"`
+      NEWMINORRELEASE=`grep -e '##### Version ' $WG_DIR/newwgconfmikmer62 | sed -rn "s/##### Version ([[:digit:]])\.([[:digit:]]).*/\\2/p"`
 
-      if [ $WG_NEWMAJORRELEASE -gt $WG_CURMAJORRELEASE ] || [ $WG_NEWMINORRELEASE -gt $WG_CURMINORRELEASE ]
+      if [ $NEWMAJORRELEASE -gt $CURMAJORRELEASE ] || [ $NEWMINORRELEASE -gt $CURMINORRELEASE ]
       then
         chmod +x $WG_DIR/newwgconfmikmer62
         mv $WG_DIR/newwgconfmikmer62 $WG_DIR/wgconf
-        echo "Mise à jour en version "$WG_NEWMAJORRELEASE"."$WG_NEWMINORRELEASE "effectuée !"
+        echo "Mise à jour en version "$NEWMAJORRELEASE"."$NEWMINORRELEASE "effectuée !"
       else
+        rm $WG_DIR/newwgconfmikmer62
         echo "Vous disposez déjà de la dernière version de wgconf !"
-      rm $WG_DIR/newwgconfmikmer62
       fi
     else
       echo "Nombre de paramètres incorrect !"
@@ -445,7 +473,7 @@ case $1 in
     ;;
 
   ?)
-    echo "wgconf version "$WG_CURMAJORRELEASE"."$WG_CURMINORRELEASE
+    echo "wgconf version "$CURMAJORRELEASE"."$CURMINORRELEASE
     echo "USAGE"
     echo "    wgconf <option> [<byip>] [nom_du_client] [email]"
     echo "    Le nom du client  ne doit pas contenir d'espace"
@@ -458,7 +486,8 @@ case $1 in
     echo "    listkeys                      : Affiche la liste des clé publiques et privées"
     echo "    showcli nom_du_client         : Affiche le fichier de configuration du client"
     echo "    showqrcode nom_du_client      : Affiche le qrcode du client"
-    echo "    sendconf nom_du_client email  : Envoie les fichier de configuration à l'adresse email"
+    echo "    sendconf nom_du_client email  : Envoie les fichier de configuration à l'adresse email avec sendmail"
+    echo "    sendconf2 nom_du_client email : Envoie les fichier de configuration à l'adresse email avec mutt"
     echo "    stop                          : Arrête le serveur VPN Wireguard"
     echo "    restart                       : Redémarre le serveur VPN Wireguard"
     echo "    raz                           : Supprime tous les clients et la configuration"
