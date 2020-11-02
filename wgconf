@@ -350,8 +350,8 @@ case $1 in
       then
         if [[ $3 =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]+$ ]]
         then
-          echo -e "From: mikmer@mikmer.fr\nTo: "$3"\nSubject: Configuration Wireguard\n\nFichiers de configuration et qrcode en pièces jointes ! " \
-            | uuenview -a -bo $WG_DIRCONF"/"$2.conf $WG_DIRQRCODE"/"$2.jpg | sendmail -it
+          echo -e "To: "$3"\nSubject: Configuration Wireguard\n\nFichiers de configuration et qrcode en pièces jointes ! " \
+            | uuenview -a -bo $WG_DIRCONF"/"$2.conf $WG_DIRQRCODE"/"$2.jpg | sendmail -it -f mikmer@mikmer.fr
           echo -e "\nFichiers de configuration envoyés !\n"
         else
           echo "Adresse email incorrecte !"
