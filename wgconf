@@ -3,7 +3,7 @@
 ##### wgconf : gest serveur et clients wireguard
 ##### https://github.com/mikmer62/wgconf
 
-##### Version 1.4
+##### Version 1.5
 
 #####
 ##### Lecture / écriture des paramètres
@@ -26,14 +26,16 @@ function wggetparams () {
     WG_DNS=176.103.130.130,176.103.130.131
     WG_MTU=`ip address | grep -Po $WG_ETHERNET'.*mtu [[:digit:]]*' | sed -rn "s/.*mtu ([[:digit:]])/\\1/p"`
     WG_PERSKEEPALIVE=25
+    WG_SENDERMAIL=''
   else
-    WG_PUBLICIP=`grep 'WG_PUBLICIP=' $WG_DIR'/wgconf.params' | sed -rn 's/WG_PUBLICIP=(.*)/\\1/p'`
-    WG_INTERNALVPNIP=`grep 'WG_INTERNALVPNIP=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_INTERNALVPNIP=(.*)/\\1/p"`
-    WG_LISTENPORT=`grep 'WG_LISTENPORT=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_LISTENPORT=(.*)/\\1/p"`
-    WG_ETHERNET=`grep 'WG_ETHERNET=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_ETHERNET=(.*)/\\1/p"`
-    WG_DNS=`grep 'WG_DNS=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_DNS=(.*)/\\1/p"`
-    WG_MTU=`grep 'WG_MTU=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_MTU=(.*)/\\1/p"`
-    WG_PERSKEEPALIVE=`grep 'WG_PERSKEEPALIVE=' $WG_DIR'/wgconf.params' | sed -rn "s/WG_PERSKEEPALIVE=(.*)/\\1/p"`
+    WG_PUBLICIP=`grep 'WG_PUBLICIP=' $WG_PARAMS | sed -rn 's/WG_PUBLICIP=(.*)/\\1/p'`
+    WG_INTERNALVPNIP=`grep 'WG_INTERNALVPNIP=' $WG_PARAMS | sed -rn "s/WG_INTERNALVPNIP=(.*)/\\1/p"`
+    WG_LISTENPORT=`grep 'WG_LISTENPORT=' $WG_PARAMS | sed -rn "s/WG_LISTENPORT=(.*)/\\1/p"`
+    WG_ETHERNET=`grep 'WG_ETHERNET=' $WG_PARAMS | sed -rn "s/WG_ETHERNET=(.*)/\\1/p"`
+    WG_DNS=`grep 'WG_DNS=' $WG_PARAMS | sed -rn "s/WG_DNS=(.*)/\\1/p"`
+    WG_MTU=`grep 'WG_MTU=' $WG_PARAMS | sed -rn "s/WG_MTU=(.*)/\\1/p"`
+    WG_PERSKEEPALIVE=`grep 'WG_PERSKEEPALIVE=' $WG_PARAMS | sed -rn "s/WG_PERSKEEPALIVE=(.*)/\\1/p"`
+    WG_SENDERMAIL=`grep 'WG_SENDERMAIL=' $WG_PARAMS | sed -rn "s/WG_SENDERMAIL=(.*)/\\1/p"`
   fi
 
   # Racine IP du VPN (XXX.XXX.XXX.)
@@ -54,31 +56,34 @@ function wgsetparams () {
   read -rp "  DNS ? " -e -i "$WG_DNS" WG_DNS
   read -rp "  MTU ? " -e -i "$WG_MTU" WG_MTU
   read -rp "  Persistent Keep Alive ? " -e -i "$WG_PERSKEEPALIVE" WG_PERSKEEPALIVE
+  read -rp "  Adresse mail expéditeur des fichiers de configuration ? " -e -i "$WG_SENDERMAIL" WG_SENDERMAIL
 
-  echo "# répertoire d'installation" > $WG_DIR/wgconf.params
-  echo "WG_DIR="$WG_DIR >> $WG_DIR/wgconf.params
-  echo "# répertoire de stockage des clés" >> $WG_DIR/wgconf.params
-  echo "WG_DIRKEYS="$WG_DIRKEYS >> $WG_DIR/wgconf.params
-  echo "# répertoire de stockage des fichiers de conf clients" >> $WG_DIR/wgconf.params
-  echo "WG_DIRCONF="$WG_DIRCONF >> $WG_DIR/wgconf.params
-  echo "# répertoire de stockage des qrcode" >> $WG_DIR/wgconf.params
-  echo "WG_DIRQRCODE="$WG_DIRQRCODE >> $WG_DIR/wgconf.params
-  echo "# fichier de configuration" >> $WG_DIR/wgconf.params
-  echo "WG_FILECONF="$WG_FILECONF >> $WG_DIR/wgconf.params
-  echo "# Adresse IP publique du serveur" >> $WG_DIR/wgconf.params
-  echo "WG_PUBLICIP="$WG_PUBLICIP >> $WG_DIR/wgconf.params
-  echo "# IP du serveur dans le tunnel" >> $WG_DIR/wgconf.params
-  echo "WG_INTERNALVPNIP="$WG_INTERNALVPNIP >> $WG_DIR/wgconf.params
-  echo "# Port d'écoute wireguard" >> $WG_DIR/wgconf.params
-  echo "WG_LISTENPORT="$WG_LISTENPORT >> $WG_DIR/wgconf.params
-  echo "# Carte ethernet" >> $WG_DIR/wgconf.params
-  echo "WG_ETHERNET="$WG_ETHERNET >> $WG_DIR/wgconf.params
-  echo "# DNS (Google=8.8.8.8,8.8.4.4; AdGuard=176.103.130.130,176.103.130.131; CloudFare=1.1.1.1,1.0.0.1; OpenDNS=208.67.222.222,208.67.220.220)" >> $WG_DIR/wgconf.params
-  echo "WG_DNS="$WG_DNS >> $WG_DIR/wgconf.params
-  echo "# MTU" >> $WG_DIR/wgconf.params
-  echo "WG_MTU="$WG_MTU >> $WG_DIR/wgconf.params
-  echo "# Persistent keep alive" >> $WG_DIR/wgconf.params
-  echo "WG_PERSKEEPALIVE="$WG_PERSKEEPALIVE >> $WG_DIR/wgconf.params
+  echo "# répertoire d'installation" > $WG_PARAMS
+  echo "WG_DIR="$WG_DIR >> $WG_PARAMS
+  echo "# répertoire de stockage des clés" >> $WG_PARAMS
+  echo "WG_DIRKEYS="$WG_DIRKEYS >> $WG_PARAMS
+  echo "# répertoire de stockage des fichiers de conf clients" >> $WG_PARAMS
+  echo "WG_DIRCONF="$WG_DIRCONF >> $WG_PARAMS
+  echo "# répertoire de stockage des qrcode" >> $WG_PARAMS
+  echo "WG_DIRQRCODE="$WG_DIRQRCODE >> $WG_PARAMS
+  echo "# fichier de configuration" >> $WG_PARAMS
+  echo "WG_FILECONF="$WG_FILECONF >> $WG_PARAMS
+  echo "# Adresse IP publique du serveur" >> $WG_PARAMS
+  echo "WG_PUBLICIP="$WG_PUBLICIP >> $WG_PARAMS
+  echo "# IP du serveur dans le tunnel" >> $WG_PARAMS
+  echo "WG_INTERNALVPNIP="$WG_INTERNALVPNIP >> $WG_PARAMS
+  echo "# Port d'écoute wireguard" >> $WG_PARAMS
+  echo "WG_LISTENPORT="$WG_LISTENPORT >> $WG_PARAMS
+  echo "# Carte ethernet" >> $WG_PARAMS
+  echo "WG_ETHERNET="$WG_ETHERNET >> $WG_PARAMS
+  echo "# DNS (Google=8.8.8.8,8.8.4.4; AdGuard=176.103.130.130,176.103.130.131; CloudFare=1.1.1.1,1.0.0.1; OpenDNS=208.67.222.222,208.67.220.220)" >> $WG_PARAMS
+  echo "WG_DNS="$WG_DNS >> $WG_PARAMS
+  echo "# MTU" >> $WG_PARAMS
+  echo "WG_MTU="$WG_MTU >> $WG_PARAMS
+  echo "# Persistent keep alive" >> $WG_PARAMS
+  echo "WG_PERSKEEPALIVE="$WG_PERSKEEPALIVE >> $WG_PARAMS
+  echo "# Adresse mail expéditeur fichiers de configuration" >> $WG_PARAMS
+  echo "WG_SENDERMAIL="$WG_SENDERMAIL >> $WG_PARAMS
 
   echo -e "\nFichier wgconf.params créé ou modifié !\n"
 }
@@ -93,7 +98,7 @@ then
   then
     # Wireguard tourne déjà mais pas avec une configuration créée par wgconf
     echo "Impossible d'utiliser wgconf avec une configuration Wireguard déjà existante !"
-#    exit
+    exit
   elif [ $1 != "raz" ] && [ $1 != "init" ]
   then
     # Tentative d'utilisation de wgconf sans savoir initialisé les paramètres
@@ -115,8 +120,8 @@ case $1 in
       exit
     elif [ -e $WG_PARAMS ]
     then
-      echo "Les paramètres de configuration sont déjà définis !"
-      exit
+      echo "Les paramètres de configuration sont déjà définis..."
+      echo "La modification des paramètres risque de rendre inactif les clients !"
     fi
 
     wgsetparams
@@ -336,11 +341,12 @@ case $1 in
     ;;
 
   ##### Envoi des fichiers de configuration par mail
-  sendconf)
-    UUENVIEWINST=`which uuenview`
-    if [ -z $UUENVIEWINST ]
+
+  sendmail)
+    UUMAILPACK=`which uuenview postfix | wc -l`
+    if [ ! $UUMAILPACK == 2 ]
     then
-      echo -e "\nImpossible d'envoyer des mails : le package uuenview n'est pas installé !\n"
+      echo -e "\nImpossible d'envoyer des mails : les packages postfix et uuenview ne sont pas installés !\n"
       exit
     fi
 
@@ -350,8 +356,9 @@ case $1 in
       then
         if [[ $3 =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]+$ ]]
         then
+          SENDERMAILNAME=`grep -e 'WG_SENDERMAIL=' $WG_PARAMS | sed -rn "s/WG_SENDERMAIL=([[:alpha:]].*)\@([[:alpha:]].*)/\\1/p"`
           echo -e "To: "$3"\nSubject: Configuration Wireguard\n\nFichiers de configuration et qrcode en pièces jointes ! " \
-            | uuenview -a -bo $WG_DIRCONF"/"$2.conf $WG_DIRQRCODE"/"$2.jpg | sendmail -it -f mikmer@mikmer.fr
+            | uuenview -a -bo $WG_DIRCONF"/"$2.conf $WG_DIRQRCODE"/"$2.jpg | sendmail -it -f $WG_SENDERMAIL -F $SENDERMAILNAME
           echo -e "\nFichiers de configuration envoyés !\n"
         else
           echo "Adresse email incorrecte !"
@@ -365,7 +372,7 @@ case $1 in
     ;;
 
   ##### Envoi des fichiers de configuration par mail
-  sendconf2)
+  mutt)
     MUTTINST=`which mutt`
     if [ -z $MUTTINST ]
     then
@@ -486,8 +493,8 @@ case $1 in
     echo "    listkeys                      : Affiche la liste des clé publiques et privées"
     echo "    showcli nom_du_client         : Affiche le fichier de configuration du client"
     echo "    showqrcode nom_du_client      : Affiche le qrcode du client"
-    echo "    sendconf nom_du_client email  : Envoie les fichier de configuration à l'adresse email avec sendmail"
-    echo "    sendconf2 nom_du_client email : Envoie les fichier de configuration à l'adresse email avec mutt"
+    echo "    sendmail nom_du_client email  : Envoie les fichier de configuration à l'adresse email avec sendmail"
+    echo "    mutt nom_du_client email      : Envoie les fichier de configuration à l'adresse email avec mutt"
     echo "    stop                          : Arrête le serveur VPN Wireguard"
     echo "    restart                       : Redémarre le serveur VPN Wireguard"
     echo "    raz                           : Supprime tous les clients et la configuration"
