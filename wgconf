@@ -23,7 +23,7 @@ function wggetparams () {
     WG_INTERNALVPNIP=10.66.66.1
     WG_LISTENPORT=51820
     WG_ETHERNET=`ip -4 route ls | grep default | sed -rn "s/.*dev ([[:alnum:]]*) .*/\\1/p"`
-    WG_DNS=176.103.130.130,176.103.130.131
+    WG_DNS=94.140.14.14,94.140.15.15
     WG_MTU=`ip address | grep -Po $WG_ETHERNET'.*mtu [[:digit:]]*' | sed -rn "s/.*mtu ([[:digit:]])/\\1/p"`
     WG_PERSKEEPALIVE=25
     WG_SENDERMAIL=''
@@ -76,7 +76,7 @@ function wgsetparams () {
   echo "WG_LISTENPORT="$WG_LISTENPORT >> $WG_PARAMS
   echo "# Carte ethernet" >> $WG_PARAMS
   echo "WG_ETHERNET="$WG_ETHERNET >> $WG_PARAMS
-  echo "# DNS (Google=8.8.8.8,8.8.4.4; AdGuard=176.103.130.130,176.103.130.131; CloudFare=1.1.1.1,1.0.0.1; OpenDNS=208.67.222.222,208.67.220.220)" >> $WG_PARAMS
+  echo "# DNS (Google=8.8.8.8,8.8.4.4; AdGuard=94.140.14.14,94.140.15.15; CloudFare=1.1.1.1,1.0.0.1; OpenDNS=208.67.222.222,208.67.220.220)" >> $WG_PARAMS
   echo "WG_DNS="$WG_DNS >> $WG_PARAMS
   echo "# MTU" >> $WG_PARAMS
   echo "WG_MTU="$WG_MTU >> $WG_PARAMS
